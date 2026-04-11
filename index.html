@@ -1749,6 +1749,10 @@ async function sendMessage() {
   try {
     const model = cfg.model || 'gemini-2.5-flash';
 
+    // Gemini 不允許 google_search 和 function_declarations 共存
+    // 根據訊息意圖切換：有 Notion 寫入意圖 → function_declarations，否則 → google_search
+    const useNotionWrite = !!cfg.notionToken && shouldUseNotionWrite(finalText);
+
     const requestBody = {
       system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: history,
@@ -1758,9 +1762,7 @@ async function sendMessage() {
         topK: 40,
         maxOutputTokens: 4096
       },
-      tools: [
-        { google_search: {} },
-        ...(cfg.notionToken ? [{
+      tools: useNotionWrite ? [{
           function_declarations: [
             {
               name: 'notion_create_page',
@@ -1800,8 +1802,7 @@ async function sendMessage() {
               }
             }
           ]
-        }] : [])
-      ],
+        }] : [{ google_search: {} }],
       safetySettings: [
         { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
         { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
@@ -1929,6 +1930,16 @@ async function sendMessage() {
   loading = false;
   btn.disabled = false;
   input.focus();
+}
+
+// 判斷是否有 Notion 寫入意圖（決定要用 function_declarations 還是 google_search）
+function shouldUseNotionWrite(text) {
+  const writeKeywords = ['新增', '建立', '新建', '創建', '記錄', '寫入', '儲存', '存到', '加入',
+    '編輯', '修改', '更新', '改標題', '追加', '補充', '新增到', '加到'];
+  const notionKeywords = ['notion', 'Notion', '知識庫', '頁面', '資料庫'];
+  const hasWrite = writeKeywords.some(kw => text.includes(kw));
+  const hasNotion = notionKeywords.some(kw => text.includes(kw));
+  return hasWrite && hasNotion;
 }
 
 // 判斷是否應該自動搜尋 Notion
