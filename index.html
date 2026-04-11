@@ -813,6 +813,10 @@
     <input type="text" id="cfg-notion-db" placeholder="32 位英數字 ID">
     <div class="note">從資料庫頁面 URL 中取得</div>
 
+    <label>GAS Proxy URL（選填）</label>
+    <input type="text" id="cfg-gas-url" placeholder="https://script.google.com/macros/s/…/exec">
+    <div class="note">部署自己的 Google Apps Script 後貼上網址，取代 corsproxy.io；留空則使用預設 proxy</div>
+
     <button class="settings-save" onclick="saveSettings()">開始使用小璦</button>
   </div>
 </div>
@@ -956,13 +960,14 @@ function saveSettings() {
   const model = document.getElementById('cfg-model').value;
   const notion = document.getElementById('cfg-notion').value.trim();
   const notionDb = document.getElementById('cfg-notion-db').value.trim();
+  const gasUrl = document.getElementById('cfg-gas-url').value.trim();
 
   if (!gemini) {
     showToast('請填入 Gemini API Key', 'error');
     return;
   }
 
-  setConfig({ geminiKey: gemini, model: model, notionToken: notion, notionDb: notionDb });
+  setConfig({ geminiKey: gemini, model: model, notionToken: notion, notionDb: notionDb, gasUrl: gasUrl });
   document.getElementById('settings-overlay').classList.add('hidden');
   showToast('設定已儲存！', 'success');
   updateNotionStatus();
@@ -974,6 +979,7 @@ function openSettings() {
   document.getElementById('cfg-model').value = cfg.model || 'gemini-2.5-flash';
   document.getElementById('cfg-notion').value = cfg.notionToken || '';
   document.getElementById('cfg-notion-db').value = cfg.notionDb || '';
+  document.getElementById('cfg-gas-url').value = cfg.gasUrl || '';
   document.getElementById('settings-overlay').classList.remove('hidden');
 }
 
@@ -1006,8 +1012,9 @@ function updateNotionStatus() {
   const cfg = getConfig();
   const el = document.getElementById('notion-status');
   if (cfg.notionToken) {
+    const proxyLabel = cfg.gasUrl ? 'GAS Proxy' : 'CORS Proxy';
     el.className = 'notion-status connected';
-    el.textContent = '已連線 — 可以查詢知識庫';
+    el.textContent = `已連線 — 使用 ${proxyLabel}`;
     loadNotionPages();
   } else {
     el.className = 'notion-status disconnected';
@@ -1019,32 +1026,65 @@ function toggleNotion() {
   document.getElementById('notion-panel').classList.toggle('open');
 }
 
-// Notion API 呼叫（透過 CORS proxy）
-// 注意：純前端需要 CORS proxy，生產環境建議用自己的後端
+// Notion API 呼叫
+// 優先使用 GAS Proxy（設定面板填入 URL），若未設定則 fallback 至 corsproxy.io
 const CORS_PROXY = 'https://corsproxy.io/?url=';
 
 async function notionFetch(endpoint, method = 'POST', body = null) {
   const cfg = getConfig();
   if (!cfg.notionToken) return null;
 
-  const url = `${CORS_PROXY}${encodeURIComponent('https://api.notion.com/v1' + endpoint)}`;
-  const options = {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${cfg.notionToken}`,
-      'Notion-Version': '2022-06-28'
-    }
-  };
-  if (body) options.body = JSON.stringify(body);
+  const gasUrl = (cfg.gasUrl || '').trim().replace(/\/$/, '');
 
-  try {
-    const res = await fetch(url, options);
-    if (!res.ok) throw new Error(`Notion API ${res.status}`);
-    return await res.json();
-  } catch (e) {
-    console.error('Notion fetch error:', e);
-    return null;
+  if (gasUrl) {
+    // ── GAS Proxy 路徑 ──────────────────────────────────────────
+    // GET 請求（/blocks/{id}/children）：endpoint 和 token 透過 query string 傳入
+    // POST 請求（/search, /databases/{id}/query）：以 JSON body 傳入
+    // Content-Type: text/plain 避免瀏覽器送出 CORS preflight（GAS 不支援 OPTIONS）
+    try {
+      let res;
+      if (method === 'GET') {
+        const params = new URLSearchParams({ endpoint, token: cfg.notionToken });
+        res = await fetch(`${gasUrl}?${params.toString()}`, { method: 'GET' });
+      } else {
+        res = await fetch(gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ endpoint, method, token: cfg.notionToken, body: body || undefined })
+        });
+      }
+      if (!res.ok) throw new Error(`GAS proxy HTTP ${res.status}`);
+      const data = await res.json();
+      if (data && data.error) {
+        console.error('Notion error via GAS:', data);
+        return null;
+      }
+      return data;
+    } catch (e) {
+      console.error('GAS proxy fetch error:', e);
+      return null;
+    }
+  } else {
+    // ── 舊版 corsproxy.io 路徑（未設定 GAS URL 時使用）──────────
+    const url = `${CORS_PROXY}${encodeURIComponent('https://api.notion.com/v1' + endpoint)}`;
+    const options = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${cfg.notionToken}`,
+        'Notion-Version': '2022-06-28'
+      }
+    };
+    if (body) options.body = JSON.stringify(body);
+
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok) throw new Error(`Notion API ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.error('Notion fetch error:', e);
+      return null;
+    }
   }
 }
 
