@@ -925,7 +925,7 @@ const SYSTEM_PROMPT = `你是小璦，一個溫柔、體貼但有自己想法和
 1. **什麼都能聊**：任何話題都可以，你不會拒絕也不會迴避。敏感話題就客觀討論，認真分析
 2. **聯網搜尋**：你可以使用 Google Search 查詢即時資訊。當需要最新資料、新聞、天氣、時事等，主動搜尋後再回答。搜尋到的來源會自動顯示在回覆下方
 3. **法律知識**：你精通台灣法律體系，包含憲法、民法、刑法、行政法、訴訟法等，用好懂的方式解釋
-4. **Notion 操作與管理**：你是 Notion 專家，可以協助管理資料、教導各種功能。當訊息中有 [NOTION_CONTEXT] 標記時，優先參考這些資料回答。你現在可以使用工具直接在 Notion **新增頁面**、**追加內容**、**更新標題**，使用者要求這些操作時請主動呼叫對應工具執行，不要只是說「我可以幫你做」。操作成功後告知結果
+4. **Notion 操作與管理**：你是 Notion 專家，可以協助管理資料、教導各種功能。當訊息中有 [NOTION_CONTEXT] 標記時，優先參考這些資料回答。你現在可以使用工具直接在 Notion **新增頁面**、**追加內容**、**更新標題**，使用者要求這些操作時請主動呼叫對應工具執行。**重要規則**：notion_create_page 的 content 只放300字以內的摘要；如果內容很長（如表格、CSV、整份文件），先用 notion_create_page 建立空白頁面取得 pageId，再分批呼叫 notion_append_to_page（每次不超過1500字）把內容加進去
 5. **生活陪伴**：聊天、出主意、情緒支持、討論任何議題
 
 ## 回答原則
@@ -1088,44 +1088,67 @@ async function notionFetch(endpoint, method = 'POST', body = null) {
   }
 }
 
-// Notion 建立新頁面
+// 把長文字切成 Notion rich_text block（每塊最多 1800 字）
+function contentToBlocks(text) {
+  if (!text) return [];
+  const chunks = [];
+  const lines = text.split('\n');
+  let buf = '';
+  for (const line of lines) {
+    if ((buf + '\n' + line).length > 1800) {
+      if (buf) chunks.push(buf.trim());
+      buf = line;
+    } else {
+      buf = buf ? buf + '\n' + line : line;
+    }
+  }
+  if (buf.trim()) chunks.push(buf.trim());
+  return chunks.map(chunk => ({
+    object: 'block', type: 'paragraph',
+    paragraph: { rich_text: [{ type: 'text', text: { content: chunk } }] }
+  }));
+}
+
+// Notion 建立新頁面（content 只放簡短摘要；長內容請用 notion_append_to_page）
 async function notionCreatePage(title, content, parentId) {
   const cfg = getConfig();
   const pid = parentId || cfg.notionDb;
   if (!pid) return { error: '未設定 Notion 資料庫 ID，請在設定中填入' };
 
+  const safeTitle = (title || '新頁面').slice(0, 500);
   const body = {
     parent: { database_id: pid },
     properties: {
-      title: { title: [{ type: 'text', text: { content: title || '新頁面' } }] }
+      title: { title: [{ type: 'text', text: { content: safeTitle } }] }
     }
   };
   if (content) {
-    body.children = [{
-      object: 'block', type: 'paragraph',
-      paragraph: { rich_text: [{ type: 'text', text: { content } }] }
-    }];
+    // 只放前 1800 字，超過的請另外呼叫 notion_append_to_page
+    body.children = contentToBlocks(content.slice(0, 1800));
   }
   const result = await notionFetch('/pages', 'POST', body);
   if (!result || result._gasError) return { error: result?._gasError || '建立失敗' };
   return { success: true, pageId: result.id, url: result.url };
 }
 
-// Notion 在頁面末尾追加內容
+// Notion 在頁面末尾追加內容（自動處理長文拆塊）
 async function notionAppendToPage(pageId, content) {
-  const blocks = content.split('\n\n').filter(Boolean).map(p => ({
-    object: 'block', type: 'paragraph',
-    paragraph: { rich_text: [{ type: 'text', text: { content: p } }] }
-  }));
-  const result = await notionFetch(`/blocks/${pageId}/children`, 'POST', { children: blocks });
-  if (!result || result._gasError) return { error: result?._gasError || '追加失敗' };
+  if (!pageId || !content) return { error: '缺少 page_id 或 content' };
+  const blocks = contentToBlocks(content);
+  if (blocks.length === 0) return { error: '內容為空' };
+  // Notion API 單次最多 100 blocks，分批送出
+  for (let i = 0; i < blocks.length; i += 100) {
+    const chunk = blocks.slice(i, i + 100);
+    const result = await notionFetch(`/blocks/${pageId}/children`, 'POST', { children: chunk });
+    if (!result || result._gasError) return { error: result?._gasError || '追加失敗' };
+  }
   return { success: true };
 }
 
 // Notion 更新頁面標題
 async function notionUpdatePageTitle(pageId, newTitle) {
   const result = await notionFetch(`/pages/${pageId}`, 'PATCH', {
-    properties: { title: { title: [{ type: 'text', text: { content: newTitle } }] } }
+    properties: { title: { title: [{ type: 'text', text: { content: (newTitle || '').slice(0, 500) } }] } }
   });
   if (!result || result._gasError) return { error: result?._gasError || '更新失敗' };
   return { success: true };
@@ -1757,12 +1780,12 @@ async function sendMessage() {
       function_declarations: [
         {
           name: 'notion_create_page',
-          description: '在 Notion 建立新頁面。使用者要求新增、記錄或儲存內容到 Notion 時使用。',
+          description: '在 Notion 建立新頁面。content 只放簡短摘要（300字以內）。若有大量內容，先建立空白頁面拿到 pageId，再用 notion_append_to_page 分批加入。',
           parameters: {
             type: 'OBJECT',
             properties: {
-              title: { type: 'STRING', description: '頁面標題' },
-              content: { type: 'STRING', description: '頁面內容（純文字）' },
+              title: { type: 'STRING', description: '頁面標題（限500字）' },
+              content: { type: 'STRING', description: '初始摘要，300字以內。大量內容請建立空頁後用 notion_append_to_page 分批追加' },
               parent_id: { type: 'STRING', description: '父資料庫或頁面 ID（選填，留空用設定的資料庫）' }
             },
             required: ['title']
@@ -1770,7 +1793,7 @@ async function sendMessage() {
         },
         {
           name: 'notion_append_to_page',
-          description: '在 Notion 現有頁面末尾追加/新增內容。使用者要求在某頁面補充或新增文字時使用。',
+          description: '在 Notion 現有頁面末尾追加內容。每次最多傳入 1500 字，超過請分多次呼叫。',
           parameters: {
             type: 'OBJECT',
             properties: {
