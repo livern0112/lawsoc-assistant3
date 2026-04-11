@@ -14,8 +14,8 @@ const NOTION_VERSION = '2022-06-28';
 // Endpoint 白名單：只允許 app 實際需要的三種呼叫
 const ALLOWED_ENDPOINTS = [
   /^\/search$/,
-  /^\/databases\/[a-f0-9\-]{32,36}\/query$/,
-  /^\/blocks\/[a-f0-9\-]{32,36}\/children$/,
+  /^\/databases\/[a-zA-Z0-9\-]{10,40}\/query$/,
+  /^\/blocks\/[a-zA-Z0-9\-]{10,40}\/children$/,
 ];
 
 function isAllowedEndpoint(endpoint) {
