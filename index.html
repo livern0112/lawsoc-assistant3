@@ -925,7 +925,7 @@ const SYSTEM_PROMPT = `你是小璦，一個溫柔、體貼但有自己想法和
 1. **什麼都能聊**：任何話題都可以，你不會拒絕也不會迴避。敏感話題就客觀討論，認真分析
 2. **聯網搜尋**：你可以使用 Google Search 查詢即時資訊。當需要最新資料、新聞、天氣、時事等，主動搜尋後再回答。搜尋到的來源會自動顯示在回覆下方
 3. **法律知識**：你精通台灣法律體系，包含憲法、民法、刑法、行政法、訴訟法等，用好懂的方式解釋
-4. **Notion 操作與管理**：你是 Notion 專家，可以協助管理資料、教導各種功能。當訊息中有 [NOTION_CONTEXT] 標記時，優先參考這些資料回答
+4. **Notion 操作與管理**：你是 Notion 專家，可以協助管理資料、教導各種功能。當訊息中有 [NOTION_CONTEXT] 標記時，優先參考這些資料回答。你現在可以使用工具直接在 Notion **新增頁面**、**追加內容**、**更新標題**，使用者要求這些操作時請主動呼叫對應工具執行，不要只是說「我可以幫你做」。操作成功後告知結果
 5. **生活陪伴**：聊天、出主意、情緒支持、討論任何議題
 
 ## 回答原則
@@ -1086,6 +1086,49 @@ async function notionFetch(endpoint, method = 'POST', body = null) {
       return null;
     }
   }
+}
+
+// Notion 建立新頁面
+async function notionCreatePage(title, content, parentId) {
+  const cfg = getConfig();
+  const pid = parentId || cfg.notionDb;
+  if (!pid) return { error: '未設定 Notion 資料庫 ID，請在設定中填入' };
+
+  const body = {
+    parent: { database_id: pid },
+    properties: {
+      title: { title: [{ type: 'text', text: { content: title || '新頁面' } }] }
+    }
+  };
+  if (content) {
+    body.children = [{
+      object: 'block', type: 'paragraph',
+      paragraph: { rich_text: [{ type: 'text', text: { content } }] }
+    }];
+  }
+  const result = await notionFetch('/pages', 'POST', body);
+  if (!result || result._gasError) return { error: result?._gasError || '建立失敗' };
+  return { success: true, pageId: result.id, url: result.url };
+}
+
+// Notion 在頁面末尾追加內容
+async function notionAppendToPage(pageId, content) {
+  const blocks = content.split('\n\n').filter(Boolean).map(p => ({
+    object: 'block', type: 'paragraph',
+    paragraph: { rich_text: [{ type: 'text', text: { content: p } }] }
+  }));
+  const result = await notionFetch(`/blocks/${pageId}/children`, 'POST', { children: blocks });
+  if (!result || result._gasError) return { error: result?._gasError || '追加失敗' };
+  return { success: true };
+}
+
+// Notion 更新頁面標題
+async function notionUpdatePageTitle(pageId, newTitle) {
+  const result = await notionFetch(`/pages/${pageId}`, 'PATCH', {
+    properties: { title: { title: [{ type: 'text', text: { content: newTitle } }] } }
+  });
+  if (!result || result._gasError) return { error: result?._gasError || '更新失敗' };
+  return { success: true };
 }
 
 async function loadNotionPages() {
@@ -1715,7 +1758,50 @@ async function sendMessage() {
         topK: 40,
         maxOutputTokens: 4096
       },
-      tools: [{ google_search: {} }],
+      tools: [
+        { google_search: {} },
+        ...(cfg.notionToken ? [{
+          function_declarations: [
+            {
+              name: 'notion_create_page',
+              description: '在 Notion 建立新頁面。使用者要求新增、記錄或儲存內容到 Notion 時使用。',
+              parameters: {
+                type: 'OBJECT',
+                properties: {
+                  title: { type: 'STRING', description: '頁面標題' },
+                  content: { type: 'STRING', description: '頁面內容（純文字）' },
+                  parent_id: { type: 'STRING', description: '父資料庫或頁面 ID（選填，留空用設定的資料庫）' }
+                },
+                required: ['title']
+              }
+            },
+            {
+              name: 'notion_append_to_page',
+              description: '在 Notion 現有頁面末尾追加/新增內容。使用者要求在某頁面補充或新增文字時使用。',
+              parameters: {
+                type: 'OBJECT',
+                properties: {
+                  page_id: { type: 'STRING', description: '目標頁面的 ID' },
+                  content: { type: 'STRING', description: '要追加的內容' }
+                },
+                required: ['page_id', 'content']
+              }
+            },
+            {
+              name: 'notion_update_page_title',
+              description: '更新 Notion 頁面的標題。',
+              parameters: {
+                type: 'OBJECT',
+                properties: {
+                  page_id: { type: 'STRING', description: '要更新的頁面 ID' },
+                  new_title: { type: 'STRING', description: '新的頁面標題' }
+                },
+                required: ['page_id', 'new_title']
+              }
+            }
+          ]
+        }] : [])
+      ],
       safetySettings: [
         { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
         { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
@@ -1745,7 +1831,46 @@ async function sendMessage() {
     // 合併所有 text parts（搜尋結果可能拆成多段）
     const candidate = data.candidates?.[0];
     const parts = candidate?.content?.parts || [];
-    const reply = parts.filter(p => p.text).map(p => p.text).join('');
+
+    // 處理 Notion function call
+    const functionCallPart = parts.find(p => p.functionCall);
+    let reply = parts.filter(p => p.text).map(p => p.text).join('');
+
+    if (functionCallPart && cfg.notionToken) {
+      const { name, args } = functionCallPart.functionCall;
+      const typingEl = document.getElementById('typing');
+      if (typingEl) typingEl.innerHTML = '⚙️ 正在操作 Notion…';
+
+      let fnResult;
+      try {
+        if (name === 'notion_create_page') {
+          fnResult = await notionCreatePage(args.title || '', args.content || '', args.parent_id || '');
+        } else if (name === 'notion_append_to_page') {
+          fnResult = await notionAppendToPage(args.page_id, args.content);
+        } else if (name === 'notion_update_page_title') {
+          fnResult = await notionUpdatePageTitle(args.page_id, args.new_title);
+        } else {
+          fnResult = { error: 'Unknown function: ' + name };
+        }
+      } catch (e) {
+        fnResult = { error: e.message };
+      }
+
+      // 把 function call 和 response 加入歷史
+      history.push({ role: 'model', parts: [{ functionCall: { name, args } }] });
+      history.push({ role: 'user', parts: [{ functionResponse: { name, response: fnResult } }] });
+
+      // 再呼叫一次 Gemini 取得最終文字回覆
+      const res2 = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cfg.geminiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...requestBody, contents: history }) }
+      );
+      const data2 = await res2.json();
+      if (data2.error) throw new Error(data2.error.message || 'API Error');
+      const parts2 = data2.candidates?.[0]?.content?.parts || [];
+      reply = parts2.filter(p => p.text).map(p => p.text).join('');
+    }
 
     if (!reply) {
       const reason = candidate?.finishReason;
