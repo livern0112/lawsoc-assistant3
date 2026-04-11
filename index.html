@@ -1753,7 +1753,49 @@ async function sendMessage() {
     // 根據訊息意圖切換：有 Notion 寫入意圖 → function_declarations，否則 → google_search
     const useNotionWrite = !!cfg.notionToken && shouldUseNotionWrite(finalText);
 
-    const requestBody = {
+    const NOTION_FUNCTION_DECLARATIONS = [{
+      function_declarations: [
+        {
+          name: 'notion_create_page',
+          description: '在 Notion 建立新頁面。使用者要求新增、記錄或儲存內容到 Notion 時使用。',
+          parameters: {
+            type: 'OBJECT',
+            properties: {
+              title: { type: 'STRING', description: '頁面標題' },
+              content: { type: 'STRING', description: '頁面內容（純文字）' },
+              parent_id: { type: 'STRING', description: '父資料庫或頁面 ID（選填，留空用設定的資料庫）' }
+            },
+            required: ['title']
+          }
+        },
+        {
+          name: 'notion_append_to_page',
+          description: '在 Notion 現有頁面末尾追加/新增內容。使用者要求在某頁面補充或新增文字時使用。',
+          parameters: {
+            type: 'OBJECT',
+            properties: {
+              page_id: { type: 'STRING', description: '目標頁面的 ID' },
+              content: { type: 'STRING', description: '要追加的內容' }
+            },
+            required: ['page_id', 'content']
+          }
+        },
+        {
+          name: 'notion_update_page_title',
+          description: '更新 Notion 頁面的標題。',
+          parameters: {
+            type: 'OBJECT',
+            properties: {
+              page_id: { type: 'STRING', description: '要更新的頁面 ID' },
+              new_title: { type: 'STRING', description: '新的頁面標題' }
+            },
+            required: ['page_id', 'new_title']
+          }
+        }
+      ]
+    }];
+
+    const buildRequestBody = (toolMode) => ({
       system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: history,
       generationConfig: {
@@ -1762,68 +1804,35 @@ async function sendMessage() {
         topK: 40,
         maxOutputTokens: 4096
       },
-      tools: useNotionWrite ? [{
-          function_declarations: [
-            {
-              name: 'notion_create_page',
-              description: '在 Notion 建立新頁面。使用者要求新增、記錄或儲存內容到 Notion 時使用。',
-              parameters: {
-                type: 'OBJECT',
-                properties: {
-                  title: { type: 'STRING', description: '頁面標題' },
-                  content: { type: 'STRING', description: '頁面內容（純文字）' },
-                  parent_id: { type: 'STRING', description: '父資料庫或頁面 ID（選填，留空用設定的資料庫）' }
-                },
-                required: ['title']
-              }
-            },
-            {
-              name: 'notion_append_to_page',
-              description: '在 Notion 現有頁面末尾追加/新增內容。使用者要求在某頁面補充或新增文字時使用。',
-              parameters: {
-                type: 'OBJECT',
-                properties: {
-                  page_id: { type: 'STRING', description: '目標頁面的 ID' },
-                  content: { type: 'STRING', description: '要追加的內容' }
-                },
-                required: ['page_id', 'content']
-              }
-            },
-            {
-              name: 'notion_update_page_title',
-              description: '更新 Notion 頁面的標題。',
-              parameters: {
-                type: 'OBJECT',
-                properties: {
-                  page_id: { type: 'STRING', description: '要更新的頁面 ID' },
-                  new_title: { type: 'STRING', description: '新的頁面標題' }
-                },
-                required: ['page_id', 'new_title']
-              }
-            }
-          ]
-        }] : [{ google_search: {} }],
+      tools: toolMode === 'notion' ? NOTION_FUNCTION_DECLARATIONS : [{ google_search: {} }],
       safetySettings: [
         { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
         { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
         { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
         { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
       ]
-    };
+    });
 
-    console.log(`[小璦] 使用模型: ${model}, 聯網搜尋: 已啟用`);
+    const toolMode = useNotionWrite ? 'notion' : 'search';
+    console.log(`[小璦] 使用模型: ${model}, 工具模式: ${toolMode}`);
 
-    const res = await fetch(
+    const callGemini = (mode) => fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cfg.geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      }
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildRequestBody(mode)) }
     );
 
-    const data = await res.json();
+    let res = await callGemini(toolMode);
+    let data = await res.json();
     console.log('[小璦] API 回應:', JSON.stringify(data).slice(0, 500));
+
+    // 若 Gemini 回報工具衝突，自動切換到另一種模式重試
+    if (data.error?.status === 'INVALID_ARGUMENT' && data.error.message?.includes('cannot be combined')) {
+      const fallbackMode = toolMode === 'notion' ? 'search' : 'notion';
+      console.warn(`[小璦] 工具衝突，切換至 ${fallbackMode} 模式重試`);
+      res = await callGemini(fallbackMode);
+      data = await res.json();
+    }
 
     if (data.error) {
       throw new Error(data.error.message || 'API Error');
@@ -1865,7 +1874,7 @@ async function sendMessage() {
       const res2 = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cfg.geminiKey}`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...requestBody, contents: history }) }
+          body: JSON.stringify({ ...buildRequestBody('notion'), contents: history }) }
       );
       const data2 = await res2.json();
       if (data2.error) throw new Error(data2.error.message || 'API Error');
