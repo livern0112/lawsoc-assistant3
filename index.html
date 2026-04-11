@@ -809,9 +809,9 @@
     <input type="password" id="cfg-notion" placeholder="ntn_...">
     <div class="note">需在 Notion 建立 Internal Integration 並分享頁面給它</div>
 
-    <label>Notion 資料庫 ID（選填）</label>
+    <label>Notion 資料庫 / 父頁面 ID（選填）</label>
     <input type="text" id="cfg-notion-db" placeholder="32 位英數字 ID">
-    <div class="note">從資料庫頁面 URL 中取得</div>
+    <div class="note">新增頁面時的存放位置。從 Notion URL 最後的 ID 取得（可以是資料庫或一般頁面）</div>
 
     <label>GAS Proxy URL（選填）</label>
     <input type="text" id="cfg-gas-url" placeholder="https://script.google.com/macros/s/…/exec">
@@ -1113,21 +1113,32 @@ function contentToBlocks(text) {
 async function notionCreatePage(title, content, parentId) {
   const cfg = getConfig();
   const pid = parentId || cfg.notionDb;
-  if (!pid) return { error: '未設定 Notion 資料庫 ID，請在設定中填入' };
+  if (!pid) return { error: '未設定父頁面或資料庫 ID，請在設定的「Notion 資料庫 ID」欄位填入要存放新頁面的位置 ID' };
 
   const safeTitle = (title || '新頁面').slice(0, 500);
-  const body = {
-    parent: { database_id: pid },
-    properties: {
-      title: { title: [{ type: 'text', text: { content: safeTitle } }] }
-    }
+
+  // 先嘗試當作資料庫 parent 建立
+  const tryCreate = async (parentType) => {
+    const body = {
+      parent: { [parentType]: pid },
+      properties: {
+        title: { title: [{ type: 'text', text: { content: safeTitle } }] }
+      }
+    };
+    if (content) body.children = contentToBlocks(content.slice(0, 1800));
+    return await notionFetch('/pages', 'POST', body);
   };
-  if (content) {
-    // 只放前 1800 字，超過的請另外呼叫 notion_append_to_page
-    body.children = contentToBlocks(content.slice(0, 1800));
+
+  let result = await tryCreate('database_id');
+
+  // 如果 Notion 說不是資料庫，改用 page_id 重試
+  if (result?.notionError?.code === 'validation_error' &&
+      result?.notionError?.message?.includes('page')) {
+    result = await tryCreate('page_id');
   }
-  const result = await notionFetch('/pages', 'POST', body);
+
   if (!result || result._gasError) return { error: result?._gasError || '建立失敗' };
+  if (result.error) return { error: result.notionError?.message || '建立失敗' };
   return { success: true, pageId: result.id, url: result.url };
 }
 
