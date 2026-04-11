@@ -929,7 +929,7 @@ const SYSTEM_PROMPT = `你是小璦，一個溫柔、體貼但有自己想法和
   - 建立新頁面：\`[NOTION_CMD:{"op":"create","title":"頁面標題","content":"摘要（限300字）"}]\`
   - 追加內容到頁面：\`[NOTION_CMD:{"op":"append","pageId":"xxx","content":"內容（限1500字）"}]\`
   - 更新頁面標題：\`[NOTION_CMD:{"op":"update_title","pageId":"xxx","title":"新標題"}]\`
-  **重要**：content 超過 300 字時，先建立空白頁面（content 留空），取得 pageId 後再用 append 分批加入。指令必須是合法 JSON，字串中的換行用 \\n 表示
+  **嚴格規則**：每個 NOTION_CMD 的 content 欄位**絕對不能超過 500 字**。有大量內容時，必須拆成多個 append 指令，每次一個指令、一條訊息，等上一個成功後再繼續。指令必須是合法 JSON，不得截斷，字串中的換行用 \\n 表示，不得使用實際換行符號
 5. **生活陪伴**：聊天、出主意、情緒支持、討論任何議題
 
 ## 回答原則
@@ -1811,7 +1811,7 @@ async function sendMessage() {
         temperature: 0.85,
         topP: 0.95,
         topK: 40,
-        maxOutputTokens: 4096
+        maxOutputTokens: 8192
       },
       tools: [{ google_search: {} }],
       safetySettings: [
@@ -1881,7 +1881,9 @@ async function sendMessage() {
         }
         if (result?.success) loadNotionPages();
       }
-      reply = cleanReply.trim() + notionResultMsg;
+      // 移除任何未能解析的殘留 [NOTION_CMD: 片段（被截斷的）
+      cleanReply = cleanReply.replace(/\[NOTION_CMD:[\s\S]*/g, '').trim();
+      reply = cleanReply + notionResultMsg;
     }
 
     if (!reply) {
