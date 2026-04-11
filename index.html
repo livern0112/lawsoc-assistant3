@@ -1097,7 +1097,15 @@ async function notionFetch(endpoint, method = 'POST', body = null) {
   }
 }
 
-// 把長文字切成 Notion rich_text block（每塊最多 1800 字）
+// 清理 Notion ID：只留 hex + 連字號，格式化成標準 UUID
+function sanitizeNotionId(id) {
+  if (!id) return '';
+  const clean = String(id).replace(/[^a-fA-F0-9]/g, '');
+  if (clean.length < 32) return String(id).trim().replace(/\s/g, '');
+  const h = clean.slice(0, 32);
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
+}
+（每塊最多 1800 字）
 function contentToBlocks(text) {
   if (!text) return [];
   const chunks = [];
@@ -1125,11 +1133,12 @@ async function notionCreatePage(title, content, parentId) {
   if (!pid) return { error: '未設定父頁面或資料庫 ID，請在設定的「Notion 資料庫 ID」欄位填入要存放新頁面的位置 ID' };
 
   const safeTitle = (title || '新頁面').slice(0, 500);
+  const safePid = sanitizeNotionId(pid) || pid;
 
   // 先嘗試當作資料庫 parent 建立
   const tryCreate = async (parentType) => {
     const body = {
-      parent: { [parentType]: pid },
+      parent: { [parentType]: safePid },
       properties: {
         title: { title: [{ type: 'text', text: { content: safeTitle } }] }
       }
@@ -1154,6 +1163,7 @@ async function notionCreatePage(title, content, parentId) {
 
 // Notion 在頁面末尾追加內容（自動處理長文拆塊）
 async function notionAppendToPage(pageId, content) {
+  pageId = sanitizeNotionId(pageId);
   if (!pageId || !content) return { error: '缺少 page_id 或 content' };
   const blocks = contentToBlocks(content);
   if (blocks.length === 0) return { error: '內容為空' };
@@ -1168,6 +1178,7 @@ async function notionAppendToPage(pageId, content) {
 
 // Notion 更新頁面標題
 async function notionUpdatePageTitle(pageId, newTitle) {
+  pageId = sanitizeNotionId(pageId);
   const result = await notionFetch(`/pages/${pageId}`, 'PATCH', {
     properties: { title: { title: [{ type: 'text', text: { content: (newTitle || '').slice(0, 500) } }] } }
   });
@@ -1858,12 +1869,12 @@ async function sendMessage() {
             notionResultMsg += `\n\n❌ 建立頁面失敗：${result.error}`;
           }
         } else if (cmd.op === 'append') {
-          result = await notionAppendToPage(cmd.pageId, cmd.content || '');
+          result = await notionAppendToPage(sanitizeNotionId(cmd.pageId), cmd.content || '');
           notionResultMsg += result.success
             ? `\n\n✅ 已追加內容到頁面`
             : `\n\n❌ 追加失敗：${result.error}`;
         } else if (cmd.op === 'update_title') {
-          result = await notionUpdatePageTitle(cmd.pageId, cmd.title || '');
+          result = await notionUpdatePageTitle(sanitizeNotionId(cmd.pageId), cmd.title || '');
           notionResultMsg += result.success
             ? `\n\n✅ 已更新頁面標題為「${cmd.title}」`
             : `\n\n❌ 更新標題失敗：${result.error}`;
