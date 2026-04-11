@@ -1057,7 +1057,7 @@ async function notionFetch(endpoint, method = 'POST', body = null) {
       const data = await res.json();
       if (data && data.error) {
         console.error('Notion error via GAS:', data);
-        return null;
+        return { _gasError: data.message || JSON.stringify(data) };
       }
       return data;
     } catch (e) {
@@ -1111,7 +1111,8 @@ async function loadNotionPages() {
   }
 
   if (!data || !data.results) {
-    container.innerHTML = '<div style="color:rgba(255,80,80,0.6);font-size:11px;padding:8px">無法載入，請確認 Token 和權限設定</div>';
+    const errMsg = data && data._gasError ? `錯誤：${data._gasError}` : '無法載入，請確認 Token 和權限設定';
+    container.innerHTML = `<div style="color:rgba(255,80,80,0.6);font-size:11px;padding:8px">${errMsg}</div>`;
     return;
   }
 
