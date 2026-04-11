@@ -1061,7 +1061,12 @@ async function notionFetch(endpoint, method = 'POST', body = null) {
       const data = await res.json();
       if (data && data.error) {
         console.error('Notion error via GAS:', data);
-        return { _gasError: data.message || JSON.stringify(data) };
+        // 保留 notionError 結構供上層判斷
+        return {
+          _gasError: data.notionError?.message || data.message || '未知錯誤',
+          notionError: data.notionError,
+          status: data.status
+        };
       }
       return data;
     } catch (e) {
@@ -1135,14 +1140,15 @@ async function notionCreatePage(title, content, parentId) {
 
   let result = await tryCreate('database_id');
 
-  // 如果 Notion 說不是資料庫，改用 page_id 重試
-  if (result?.notionError?.code === 'validation_error' &&
-      result?.notionError?.message?.includes('page')) {
+  // 如果 Notion 說 ID 是頁面而非資料庫，改用 page_id 重試
+  const errMsg = result?.notionError?.message || result?._gasError || '';
+  if (result?._gasError && (errMsg.includes('page') || errMsg.includes('database'))) {
+    console.log('[小璦] 改用 page_id 重試建立頁面');
     result = await tryCreate('page_id');
   }
 
-  if (!result || result._gasError) return { error: result?._gasError || '建立失敗' };
-  if (result.error) return { error: result.notionError?.message || '建立失敗' };
+  if (!result) return { error: '無法連接 GAS Proxy，請確認設定' };
+  if (result._gasError) return { error: `Notion 錯誤：${result._gasError}` };
   return { success: true, pageId: result.id, url: result.url };
 }
 
