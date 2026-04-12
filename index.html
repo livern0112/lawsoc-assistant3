@@ -929,8 +929,8 @@ const SYSTEM_PROMPT = `你是小璦，一個溫柔、體貼但有自己想法和
   - 建立新頁面：\`[NOTION_CMD:{"op":"create","title":"頁面標題","content":"摘要（限300字）"}]\`
   - 追加內容到頁面：\`[NOTION_CMD:{"op":"append","pageId":"（此處填入頁面建立後回傳的真實 ID，格式如 3402aa4f-e6b6-81e9-ad1b-c6c6c4790888）","content":"內容（限500字）"}]\`
   - 更新頁面標題：\`[NOTION_CMD:{"op":"update_title","pageId":"（真實 ID，同上）","title":"新標題"}]\`
-  **重要：pageId 欄位必須填入真實的 Notion 頁面 ID（32 位英數字），絕對不可以填 "xxx" 或其他佔位符。建立頁面後系統會回應真實 ID，後續的 append 和 update_title 必須使用那個 ID。**
-  **嚴格規則**：每個 NOTION_CMD 的 content 欄位**絕對不能超過 500 字**。有大量內容時，必須拆成多個 append 指令，每次一個指令、一條訊息，等上一個成功後再繼續。指令必須是合法 JSON，不得截斷，字串中的換行用 \\n 表示，不得使用實際換行符號
+  **重要：pageId 必須是真實的 32 位英數字 ID，絕對不可填 "xxx" 或佔位符。建立頁面後系統會在 [系統通知] 回傳真實 pageId，後續的 append/update_title 必須用那個 ID。同一回覆中若先 create 再 append，系統會自動代入剛建立的 pageId，不需要你填。**
+  **嚴格規則**：每個 NOTION_CMD 的 content 欄位**絕對不能超過 500 字**。有大量內容時，先發一個 create（含摘要），等系統確認成功後，再用多個 append 分批寫入。指令必須是合法 JSON，不得截斷，字串中的換行用 \\n 表示，不得使用實際換行符號
 5. **生活陪伴**：聊天、出主意、情緒支持、討論任何議題
 
 ## 回答原則
@@ -1874,6 +1874,7 @@ async function sendMessage() {
       let match;
       let notionResultMsg = '';
       let cleanReply = reply;
+      let lastCreatedPageId = null; // 追蹤同批指令中最後建立的頁面 ID
 
       while ((match = cmdRegex.exec(reply)) !== null) {
         cleanReply = cleanReply.replace(match[0], '');
@@ -1887,10 +1888,11 @@ async function sendMessage() {
         if (cmd.op === 'create') {
           result = await notionCreatePage(cmd.title || '', cmd.content || '', cmd.parentId || '');
           if (result.success) {
+            lastCreatedPageId = result.pageId; // 記住，讓後續 append 可自動代入
             notionResultMsg += `\n\n✅ 已在 Notion 建立頁面「${cmd.title}」`;
             if (result.url) notionResultMsg += `（[開啟頁面](${result.url})）`;
-            // 把 pageId 告訴 AI，方便後續 append
-            history.push({ role: 'user', parts: [{ text: `[系統通知] 頁面已建立成功，pageId = ${result.pageId}` }] });
+            // 把 pageId 告訴 AI，方便後續對話的 append
+            history.push({ role: 'user', parts: [{ text: `[系統通知] 頁面已建立成功，pageId = ${result.pageId}，後續 append 請使用此 ID` }] });
           } else {
             notionResultMsg += `\n\n❌ 建立頁面失敗：${result.error}`;
           }
@@ -1898,9 +1900,18 @@ async function sendMessage() {
           const rawPid = String(cmd.pageId || '');
           const cleanPid = rawPid.replace(/[^a-fA-F0-9]/g, '');
           if (cleanPid.length < 32) {
-            // pageId 明顯是佔位符或空值，跳過並提醒 AI
-            notionResultMsg += `\n\n❌ 追加失敗：pageId「${rawPid}」不是有效的 Notion ID（至少需要 32 位英數字）。請使用建立頁面時回傳的真實 pageId`;
-            history.push({ role: 'user', parts: [{ text: `[系統通知] append 指令的 pageId="${rawPid}" 無效，請使用真實的 Notion 頁面 ID（32位十六進位）` }] });
+            // pageId 無效——若同批有剛建立的頁面就自動代入
+            if (lastCreatedPageId) {
+              // 自動代入同批剛建立的頁面 ID
+              console.log('[小璦] append pageId 無效，自動代入剛建頁面:', lastCreatedPageId);
+              result = await notionAppendToPage(lastCreatedPageId, cmd.content || '');
+              notionResultMsg += result.success
+                ? `\n\n✅ 已追加內容到頁面`
+                : `\n\n❌ 追加失敗：${result.error}`;
+            } else {
+              notionResultMsg += `\n\n❌ 追加失敗：pageId「${rawPid}」不是有效的 Notion ID，請先建立頁面或提供正確的 pageId`;
+              history.push({ role: 'user', parts: [{ text: `[系統通知] append 指令的 pageId="${rawPid}" 無效，請使用真實的 Notion 頁面 ID（32位十六進位）` }] });
+            }
           } else {
             result = await notionAppendToPage(sanitizeNotionId(cmd.pageId), cmd.content || '');
             notionResultMsg += result.success
