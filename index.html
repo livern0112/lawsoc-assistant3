@@ -1195,7 +1195,7 @@ async function notionAppendToPage(pageId, content) {
   // Notion API 單次最多 100 blocks，分批送出
   for (let i = 0; i < blocks.length; i += 100) {
     const chunk = blocks.slice(i, i + 100);
-    const result = await notionFetch(`/blocks/${pageId}/children`, 'POST', { children: chunk });
+    const result = await notionFetch(`/blocks/${pageId}/children`, 'PATCH', { children: chunk });
     if (!result || result._gasError) return { error: `${result?._gasError || '追加失敗'}（pageId=${pageId}）` };
   }
   return { success: true };
