@@ -1097,13 +1097,36 @@ async function notionFetch(endpoint, method = 'POST', body = null) {
   }
 }
 
-// 清理 Notion ID：只留 hex + 連字號，格式化成標準 UUID
+// 清理 Notion ID：支援直接 ID、帶連字號 UUID、Notion URL 等格式
+// 重點：Notion URL 的 ID 在最末端，且頁面名稱可能含 hex 字元（如「日記1」的 1）
+// 因此必須優先抓「最後」一段 32-hex，不可從頭取
 function sanitizeNotionId(id) {
   if (!id) return '';
-  const clean = String(id).replace(/[^a-fA-F0-9]/g, '');
-  if (clean.length < 32) return String(id).trim().replace(/\s/g, '');
-  const h = clean.slice(0, 32);
-  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
+  const s = String(id).trim();
+
+  // 1. 優先找標準 UUID 格式 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx（取最後一個）
+  const uuidRe = /[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}/g;
+  const uuidMatches = s.match(uuidRe);
+  if (uuidMatches && uuidMatches.length) {
+    return uuidMatches[uuidMatches.length - 1].toLowerCase();
+  }
+
+  // 2. 找 32 連續 hex 字元（未加連字號的 ID），取最後一個
+  const hexRe = /[a-fA-F0-9]{32}/g;
+  const hexMatches = s.match(hexRe);
+  if (hexMatches && hexMatches.length) {
+    const h = hexMatches[hexMatches.length - 1].toLowerCase();
+    return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
+  }
+
+  // 3. Fallback：去掉所有非 hex 字元，取「最後」32 個（避免前綴干擾）
+  const clean = s.replace(/[^a-fA-F0-9]/g, '');
+  if (clean.length >= 32) {
+    const h = clean.slice(-32).toLowerCase();
+    return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
+  }
+
+  return s.replace(/\s/g, '');
 }
 
 function contentToBlocks(text) {
@@ -1163,7 +1186,9 @@ async function notionCreatePage(title, content, parentId) {
 
 // Notion 在頁面末尾追加內容（自動處理長文拆塊）
 async function notionAppendToPage(pageId, content) {
+  const rawId = pageId;
   pageId = sanitizeNotionId(pageId);
+  console.log('[小璦] Append pageId 原始:', rawId, '→ 清理後:', pageId);
   if (!pageId || !content) return { error: '缺少 page_id 或 content' };
   const blocks = contentToBlocks(content);
   if (blocks.length === 0) return { error: '內容為空' };
@@ -1171,7 +1196,7 @@ async function notionAppendToPage(pageId, content) {
   for (let i = 0; i < blocks.length; i += 100) {
     const chunk = blocks.slice(i, i + 100);
     const result = await notionFetch(`/blocks/${pageId}/children`, 'POST', { children: chunk });
-    if (!result || result._gasError) return { error: result?._gasError || '追加失敗' };
+    if (!result || result._gasError) return { error: `${result?._gasError || '追加失敗'}（pageId=${pageId}）` };
   }
   return { success: true };
 }
