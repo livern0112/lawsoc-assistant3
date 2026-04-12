@@ -1893,7 +1893,7 @@ async function sendMessage() {
           if (result.success) {
             lastCreatedPageId = result.pageId; // 記住，讓後續 append 可自動代入
             notionResultMsg += `\n\n✅ 已在 Notion 建立頁面「${cmd.title}」`;
-            if (result.url) notionResultMsg += `（[開啟頁面](${result.url})）`;
+            if (result.url) notionResultMsg += `（[開啟頁面](${result.url})）\n> 💡 若連結顯示「找不到頁面」，請改在 **Notion 桌面 App** 按 Ctrl+P 搜尋頁面名稱`;
             // 把 pageId 告訴 AI，方便後續對話的 append
             history.push({ role: 'user', parts: [{ text: `[系統通知] 頁面已建立成功，pageId = ${result.pageId}，後續 append 請使用此 ID` }] });
           } else {
