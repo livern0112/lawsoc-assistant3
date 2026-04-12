@@ -1172,16 +1172,19 @@ async function notionCreatePage(title, content, parentId) {
   };
 
   let result = await tryCreate('database_id');
+  console.log('[小璦] Create(database_id) 結果:', JSON.stringify(result).slice(0, 300));
 
   // 如果 Notion 說 ID 是頁面而非資料庫，改用 page_id 重試
   const errMsg = result?.notionError?.message || result?._gasError || '';
   if (result?._gasError && (errMsg.includes('page') || errMsg.includes('database'))) {
-    console.log('[小璦] 改用 page_id 重試建立頁面');
+    console.log('[小璦] 改用 page_id 重試建立頁面, errMsg:', errMsg);
     result = await tryCreate('page_id');
+    console.log('[小璦] Create(page_id) 結果:', JSON.stringify(result).slice(0, 300));
   }
 
   if (!result) return { error: '無法連接 GAS Proxy，請確認設定' };
   if (result._gasError) return { error: `Notion 錯誤：${result._gasError}` };
+  console.log('[小璦] 頁面建立成功, id:', result.id, 'url:', result.url, 'parent:', JSON.stringify(result.parent));
   return { success: true, pageId: result.id, url: result.url };
 }
 
