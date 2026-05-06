@@ -775,11 +775,202 @@
     background: rgba(255,140,66,0.2);
     color: white;
   }
+
+/* ===== 風月美學覆蓋 ===== */
+#bg {
+  background-image: none !important;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(120,40,80,0.3) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(80,40,140,0.25) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 90%, rgba(20,60,90,0.25) 0%, transparent 60%),
+    linear-gradient(135deg, #06040f 0%, #0e0620 50%, #06040f 100%) !important;
+}
+#bg::after { display: none; }
+
+/* 浮動光球 */
+.orb {
+  position: fixed; border-radius: 50%;
+  filter: blur(70px); opacity: 0.22;
+  pointer-events: none; z-index: 1;
+}
+.orb-1 { width: 320px; height: 320px; background: radial-gradient(circle, #ff6b9d 0%, transparent 70%); top: -100px; left: -80px; animation: orbF1 18s ease-in-out infinite; }
+.orb-2 { width: 260px; height: 260px; background: radial-gradient(circle, #c77dff 0%, transparent 70%); top: 35%; right: -70px; animation: orbF2 23s ease-in-out infinite; }
+.orb-3 { width: 210px; height: 210px; background: radial-gradient(circle, #48cae4 0%, transparent 70%); bottom: 8%; left: 12%; animation: orbF3 26s ease-in-out infinite; }
+.orb-4 { width: 180px; height: 180px; background: radial-gradient(circle, #e040fb 0%, transparent 70%); top: 55%; left: 38%; animation: orbF4 21s ease-in-out infinite; }
+.orb-5 { width: 240px; height: 240px; background: radial-gradient(circle, #f06292 0%, transparent 70%); bottom: -70px; right: 18%; animation: orbF5 29s ease-in-out infinite; }
+@keyframes orbF1 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(45px,65px) scale(1.12)} 66%{transform:translate(-22px,32px) scale(0.9)} }
+@keyframes orbF2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-55px,-45px) scale(1.15)} }
+@keyframes orbF3 { 0%,100%{transform:translate(0,0) scale(1)} 40%{transform:translate(32px,-55px) scale(1.1)} 80%{transform:translate(-22px,22px) scale(0.95)} }
+@keyframes orbF4 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-42px,44px)} }
+@keyframes orbF5 { 0%,100%{transform:translate(0,0) scale(1)} 30%{transform:translate(-35px,-32px) scale(1.06)} 70%{transform:translate(42px,-22px) scale(0.94)} }
+
+/* 閃爍星粒 */
+.sparkle { position: fixed; pointer-events: none; z-index: 2; color: rgba(255,255,255,0.35); font-size: 9px; animation: spkl var(--dur,4s) ease-in-out infinite var(--delay,0s); }
+@keyframes spkl { 0%,100%{opacity:0;transform:scale(0.4) rotate(0deg)} 50%{opacity:1;transform:scale(1.3) rotate(180deg)} }
+
+/* settings 覆蓋 */
+.settings-card { border-color: rgba(199,125,255,0.3) !important; background: rgba(10,5,26,0.97) !important; }
+.settings-save { background: linear-gradient(135deg, #c77dff, #ff6b9d) !important; }
+.settings-save:hover { opacity: 0.85; }
+
+/* topbar */
+#topbar { background: rgba(8,4,22,0.88) !important; border-bottom-color: rgba(199,125,255,0.15) !important; }
+.char-icon { background: linear-gradient(135deg, #c77dff, #ff6b9d) !important; }
+.online-pill { background: rgba(72,202,228,0.12) !important; color: #48cae4 !important; border-color: rgba(72,202,228,0.3) !important; }
+
+/* bubbles */
+.message.ai .msg-av { background: linear-gradient(135deg, #c77dff, #ff6b9d) !important; }
+.message.ai .bubble { background: rgba(12,6,32,0.85) !important; border-color: rgba(199,125,255,0.14) !important; }
+.message.user .bubble { background: linear-gradient(135deg,rgba(199,125,255,0.16),rgba(255,107,157,0.1)) !important; border-color: rgba(199,125,255,0.22) !important; }
+.bubble-name { color: #d4aaff !important; }
+
+/* input */
+#input-wrap { background: rgba(8,4,22,0.88) !important; border-color: rgba(199,125,255,0.18) !important; }
+#input-wrap:focus-within { border-color: rgba(199,125,255,0.45) !important; }
+#send-btn { background: linear-gradient(135deg, #c77dff, #ff6b9d) !important; }
+#send-btn:hover { background: linear-gradient(135deg, #d4a8ff, #ff8db3) !important; }
+.attach-btn { color: rgba(199,125,255,0.7) !important; }
+.attach-btn:hover { color: #c77dff !important; }
+
+/* hints */
+.hint { background: rgba(199,125,255,0.09) !important; border-color: rgba(199,125,255,0.2) !important; color: rgba(215,175,255,0.9) !important; }
+.hint:hover { background: rgba(199,125,255,0.22) !important; border-color: rgba(199,125,255,0.4) !important; }
+
+/* notion panel */
+#notion-panel { border-right-color: rgba(199,125,255,0.15) !important; background: rgba(8,4,22,0.97) !important; }
+
+/* ===== 世界書側欄 ===== */
+#wb-panel {
+  position: fixed; top: 0; right: 0;
+  width: 300px; height: 100vh;
+  background: rgba(9,5,24,0.97);
+  border-left: 1px solid rgba(199,125,255,0.2);
+  z-index: 60; display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  backdrop-filter: blur(20px);
+}
+#wb-panel.open { transform: translateX(0); }
+#wb-header {
+  padding: 18px 14px 12px;
+  border-bottom: 1px solid rgba(199,125,255,0.14);
+  display: flex; align-items: center; justify-content: space-between;
+}
+#wb-header h3 { font-family:'Nunito',sans-serif; font-size:14px; font-weight:700; color:#e0aaff; }
+.wb-close-btn { cursor:pointer; color:rgba(255,255,255,0.45); font-size:20px; line-height:1; padding:4px; transition:color .2s; background:none; border:none; }
+.wb-close-btn:hover { color:white; }
+#wb-add-btn {
+  margin:10px 12px;
+  padding:9px;
+  background:linear-gradient(135deg,rgba(199,125,255,0.12),rgba(255,107,157,0.08));
+  border:1px dashed rgba(199,125,255,0.32);
+  border-radius:11px;
+  color:#d4a0ff; font-size:12px; text-align:center; cursor:pointer;
+  transition:all .2s;
+}
+#wb-add-btn:hover { background:linear-gradient(135deg,rgba(199,125,255,0.22),rgba(255,107,157,0.15)); border-color:rgba(199,125,255,0.55); }
+#wb-list { flex:1; overflow-y:auto; padding:0 8px 14px; }
+#wb-list::-webkit-scrollbar { width:3px; }
+#wb-list::-webkit-scrollbar-thumb { background:rgba(199,125,255,0.28); border-radius:2px; }
+.wb-entry {
+  background:rgba(199,125,255,0.07); border:1px solid rgba(199,125,255,0.11);
+  border-radius:11px; padding:9px 11px; margin-bottom:7px;
+  display:flex; align-items:flex-start; gap:7px;
+}
+.wb-entry-info { flex:1; min-width:0; cursor:pointer; }
+.wb-entry-name { font-size:12px; font-weight:600; color:rgba(218,175,255,0.95); margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wb-entry-trigger { font-size:10px; color:rgba(175,135,218,0.55); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wb-entry-actions { display:flex; gap:4px; flex-shrink:0; align-items:center; }
+.wb-toggle {
+  width:28px; height:15px; background:rgba(255,255,255,0.1);
+  border-radius:8px; cursor:pointer; position:relative;
+  transition:background .2s; border:none; padding:0; flex-shrink:0;
+}
+.wb-toggle.on { background:linear-gradient(90deg,#c77dff,#ff6b9d); }
+.wb-toggle::after {
+  content:''; position:absolute; top:2px; left:2px;
+  width:11px; height:11px; background:white; border-radius:50%;
+  transition:transform .2s;
+}
+.wb-toggle.on::after { transform:translateX(13px); }
+.wb-del-btn { background:none; border:none; cursor:pointer; color:rgba(255,90,90,0.45); font-size:13px; padding:2px 4px; transition:color .2s; }
+.wb-del-btn:hover { color:rgba(255,90,90,0.9); }
+
+/* ===== 世界書表單 ===== */
+#wb-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.78);
+  backdrop-filter:blur(12px); z-index:120;
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+#wb-overlay.hidden { display:none; }
+.wb-form-card {
+  background:rgba(10,5,26,0.97);
+  border:1px solid rgba(199,125,255,0.3);
+  border-radius:20px; padding:22px 20px;
+  width:100%; max-width:430px;
+  max-height:90vh; overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,0.75);
+}
+.wb-form-card h3 { font-family:'Nunito',sans-serif; color:#e0aaff; font-size:15px; margin-bottom:16px; }
+.wb-form-card label { display:block; font-size:11px; color:rgba(195,155,235,0.7); margin-bottom:4px; margin-top:11px; }
+.wb-form-card input[type=text],.wb-form-card textarea,.wb-form-card select {
+  width:100%; padding:8px 11px;
+  background:rgba(255,255,255,0.07); border:1px solid rgba(199,125,255,0.18);
+  border-radius:9px; color:rgba(235,215,255,0.9);
+  font-family:'Noto Sans TC',sans-serif; font-size:12px; outline:none;
+  transition:border-color .2s;
+}
+.wb-form-card input[type=text]:focus,.wb-form-card textarea:focus,.wb-form-card select:focus { border-color:rgba(199,125,255,0.5); }
+.wb-form-card textarea { resize:vertical; min-height:75px; }
+.wb-range-row { display:flex; align-items:center; gap:10px; }
+.wb-range-row input[type=range] { flex:1; accent-color:#c77dff; }
+.wb-range-val { min-width:28px; text-align:right; color:#d4a0ff; font-size:12px; font-weight:600; }
+.wb-checkbox-group { display:flex; gap:14px; margin-top:4px; flex-wrap:wrap; }
+.wb-checkbox-group label { display:flex; align-items:center; gap:5px; color:rgba(195,155,235,0.85); font-size:12px; cursor:pointer; margin:0; }
+.wb-form-actions { display:flex; gap:9px; margin-top:18px; }
+.wb-save-btn,.wb-cancel-btn { flex:1; padding:9px; border-radius:11px; border:none; cursor:pointer; font-size:12px; font-family:'Noto Sans TC',sans-serif; transition:all .2s; }
+.wb-save-btn { background:linear-gradient(135deg,#c77dff,#ff6b9d); color:white; font-weight:600; }
+.wb-save-btn:hover { opacity:0.82; }
+.wb-cancel-btn { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.55); }
+.wb-cancel-btn:hover { background:rgba(255,255,255,0.12); }
+
+/* ===== 短期記憶標籤 ===== */
+.stm-badge { margin-top:8px; }
+.stm-badge summary {
+  cursor:pointer; font-size:10px; color:rgba(175,135,215,0.45);
+  display:flex; align-items:center; gap:4px;
+  list-style:none; outline:none; user-select:none;
+  padding:3px 0; transition:color .2s;
+}
+.stm-badge summary::-webkit-details-marker { display:none; }
+.stm-badge summary:hover { color:rgba(195,165,235,0.75); }
+.stm-badge summary::before { content:'▸'; font-size:8px; transition:transform .2s; }
+.stm-badge[open] summary::before { transform:rotate(90deg); }
+.stm-content {
+  margin-top:5px; padding:7px 9px;
+  background:rgba(199,125,255,0.055); border:1px solid rgba(199,125,255,0.11);
+  border-radius:7px; font-size:10px; color:rgba(195,165,230,0.6);
+  font-family:'Courier New',monospace; white-space:pre-wrap; line-height:1.5;
+}
 </style>
 </head>
 <body>
 
 <div id="bg"></div>
+
+<!-- 風月光球 -->
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div class="orb orb-4"></div>
+<div class="orb orb-5"></div>
+<!-- 星粒 -->
+<span class="sparkle" style="top:15%;left:10%;--dur:3.5s;--delay:0s">✦</span>
+<span class="sparkle" style="top:28%;left:75%;--dur:4.5s;--delay:1s">✧</span>
+<span class="sparkle" style="top:62%;left:5%;--dur:5s;--delay:2s">✦</span>
+<span class="sparkle" style="top:80%;left:88%;--dur:3.8s;--delay:0.5s">✧</span>
+<span class="sparkle" style="top:45%;left:52%;--dur:4.2s;--delay:1.5s">✦</span>
+<span class="sparkle" style="top:8%;left:42%;--dur:6s;--delay:0.8s">✧</span>
 
 <!-- 設定面板（首次使用） -->
 <div id="settings-overlay" class="hidden">
@@ -802,6 +993,7 @@
       <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（較快，可能不支援聯網）</option>
       <option value="gemini-2.5-pro">Gemini 2.5 Pro（最強，較慢）</option>
       <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+      <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite（輕量/省配額）</option>
     </select>
     <div class="note">需要聯網搜尋功能請選 2.5 Flash 或 2.5 Pro</div>
 
@@ -843,6 +1035,7 @@
     </div>
     <div class="topbar-actions">
       <div class="online-pill">ONLINE</div>
+      <div class="icon-btn" onclick="toggleWB()" title="世界書">📖</div>
       <div class="icon-btn" onclick="toggleNotion()" title="Notion 知識庫">📑</div>
       <div class="export-menu">
         <div class="icon-btn" onclick="toggleExportMenu()" title="匯出對話">💾</div>
@@ -898,6 +1091,63 @@
     </div>
   </div>
   <div class="footer-note">POWERED BY GEMINI AI + NOTION · 小璦一直都在</div>
+</div>
+
+<!-- 世界書側欄 -->
+<div id="wb-panel">
+  <div id="wb-header">
+    <h3>📖 世界書</h3>
+    <button class="wb-close-btn" onclick="toggleWB()">&times;</button>
+  </div>
+  <div id="wb-add-btn" onclick="openWBForm()">＋ 新增條目</div>
+  <div id="wb-list"></div>
+</div>
+
+<!-- 世界書表單覆蓋層 -->
+<div id="wb-overlay" class="hidden">
+  <div class="wb-form-card">
+    <h3>📖 世界書條目</h3>
+
+    <label>條目名稱</label>
+    <input type="text" id="wb-name" placeholder="例：法律術語解釋">
+
+    <label>觸發類型</label>
+    <select id="wb-trigger-type">
+      <option value="keyword">關鍵字（包含即觸發）</option>
+      <option value="regex">正規表達式（Regex）</option>
+    </select>
+
+    <label>觸發詞 / 正規表達式</label>
+    <input type="text" id="wb-trigger" placeholder="例：正當防衛 或 ^\/law">
+
+    <label>注入內容（注入到 AI 系統提示）</label>
+    <textarea id="wb-content" placeholder="例：正當防衛的法定要件包含：1. 現在不法侵害 2. 出於防衛意思 3. 防衛行為必要性…"></textarea>
+
+    <label>掃描深度（往回看幾條訊息）</label>
+    <div class="wb-range-row">
+      <input type="range" id="wb-depth" min="1" max="30" value="10"
+        oninput="document.getElementById('wb-depth-val').textContent=this.value">
+      <span class="wb-range-val" id="wb-depth-val">10</span>
+    </div>
+
+    <label>觸發機率</label>
+    <div class="wb-range-row">
+      <input type="range" id="wb-prob" min="1" max="100" value="100"
+        oninput="document.getElementById('wb-prob-val').textContent=this.value+'%'">
+      <span class="wb-range-val" id="wb-prob-val">100%</span>
+    </div>
+
+    <label>掃描範圍</label>
+    <div class="wb-checkbox-group">
+      <label><input type="checkbox" id="wb-region-user" checked> 使用者訊息</label>
+      <label><input type="checkbox" id="wb-region-ai" checked> AI 回覆</label>
+    </div>
+
+    <div class="wb-form-actions">
+      <button class="wb-cancel-btn" onclick="closeWBForm()">取消</button>
+      <button class="wb-save-btn" onclick="saveWBEntry()">儲存條目</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1609,6 +1859,7 @@ function addMsg(role, content, hasExternalSource = false) {
 
   chat.appendChild(d);
   chat.scrollTop = chat.scrollHeight;
+  return d;
 }
 
 function addTyping() {
@@ -1705,8 +1956,12 @@ async function sendMessage() {
   try {
     const model = cfg.model || 'gemini-2.5-flash';
 
+    const wbContext = checkWorldBookTriggers(history);
+    const memContext = getMemoryContext();
+    const fullSystemPrompt = SYSTEM_PROMPT + memContext + wbContext;
+
     const requestBody = {
-      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      system_instruction: { parts: [{ text: fullSystemPrompt }] },
       contents: history,
       generationConfig: {
         temperature: 0.85,
@@ -1777,9 +2032,21 @@ async function sendMessage() {
 
     document.getElementById('typing')?.remove();
     const usedSearch = chunks.length > 0;
-    addMsg('model', reply + sourcesMarkdown, !!notionContext || usedSearch);
+    const msgEl = addMsg('model', reply + sourcesMarkdown, !!notionContext || usedSearch);
     history.push({ role: 'model', parts: [{ text: reply }] });
     saveHistory();
+    // 短期記憶：非同步產生，不阻塞 UI
+    const capturedUserMsg = finalText;
+    addShortTermMemory(capturedUserMsg, reply).then(yaml => {
+      const bubble = msgEl?.querySelector('.bubble');
+      if (bubble && yaml) {
+        const badge = document.createElement('details');
+        badge.className = 'stm-badge';
+        const safeYaml = yaml.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        badge.innerHTML = `<summary>✦ 短期記憶</summary><div class="stm-content">${safeYaml}</div>`;
+        bubble.appendChild(badge);
+      }
+    });
   } catch (e) {
     document.getElementById('typing')?.remove();
     console.error('API Error:', e);
@@ -1810,6 +2077,208 @@ function shouldSearchNotion(text) {
   const keywords = ['公告', '通知', '規定', '辦法', '紀錄', '會議', '章程', '名單',
     '活動', '行事曆', '預算', '經費', '社費', '幹部', '組織'];
   return keywords.some(kw => text.includes(kw));
+}
+
+// ============================================================
+// 世界書系統
+// ============================================================
+const WB_KEY = 'wb_entries';
+
+function getWorldBook() {
+  try { return JSON.parse(localStorage.getItem(WB_KEY)) || []; } catch { return []; }
+}
+function saveWorldBook(entries) { localStorage.setItem(WB_KEY, JSON.stringify(entries)); }
+
+function toggleWB() {
+  document.getElementById('wb-panel').classList.toggle('open');
+  renderWBList();
+}
+
+function openWBForm(idx = -1) {
+  const overlay = document.getElementById('wb-overlay');
+  const entries = getWorldBook();
+  if (idx >= 0) {
+    const e = entries[idx];
+    overlay.dataset.editIdx = idx;
+    document.getElementById('wb-name').value = e.name;
+    document.getElementById('wb-trigger-type').value = e.triggerType || 'keyword';
+    document.getElementById('wb-trigger').value = e.trigger;
+    document.getElementById('wb-content').value = e.content;
+    document.getElementById('wb-depth').value = e.depth || 10;
+    document.getElementById('wb-depth-val').textContent = e.depth || 10;
+    document.getElementById('wb-prob').value = e.probability || 100;
+    document.getElementById('wb-prob-val').textContent = (e.probability || 100) + '%';
+    document.getElementById('wb-region-user').checked = !!(e.region & 2);
+    document.getElementById('wb-region-ai').checked = !!(e.region & 1);
+  } else {
+    delete overlay.dataset.editIdx;
+    document.getElementById('wb-name').value = '';
+    document.getElementById('wb-trigger-type').value = 'keyword';
+    document.getElementById('wb-trigger').value = '';
+    document.getElementById('wb-content').value = '';
+    document.getElementById('wb-depth').value = 10;
+    document.getElementById('wb-depth-val').textContent = 10;
+    document.getElementById('wb-prob').value = 100;
+    document.getElementById('wb-prob-val').textContent = '100%';
+    document.getElementById('wb-region-user').checked = true;
+    document.getElementById('wb-region-ai').checked = true;
+  }
+  overlay.classList.remove('hidden');
+}
+
+function closeWBForm() { document.getElementById('wb-overlay').classList.add('hidden'); }
+
+function saveWBEntry() {
+  const overlay = document.getElementById('wb-overlay');
+  const name = document.getElementById('wb-name').value.trim();
+  const trigger = document.getElementById('wb-trigger').value.trim();
+  const content = document.getElementById('wb-content').value.trim();
+  if (!name || !trigger || !content) { showToast('名稱、觸發詞、內容不能空白', 'error'); return; }
+  const region = (document.getElementById('wb-region-user').checked ? 2 : 0)
+               | (document.getElementById('wb-region-ai').checked ? 1 : 0);
+  const entry = {
+    id: Date.now(), name,
+    triggerType: document.getElementById('wb-trigger-type').value,
+    trigger, content,
+    depth: parseInt(document.getElementById('wb-depth').value) || 10,
+    probability: parseInt(document.getElementById('wb-prob').value) || 100,
+    region: region || 3,
+    enabled: true
+  };
+  const entries = getWorldBook();
+  const idx = overlay.dataset.editIdx !== undefined ? parseInt(overlay.dataset.editIdx) : -1;
+  if (idx >= 0) { entries[idx] = { ...entries[idx], ...entry, id: entries[idx].id }; }
+  else { entries.push(entry); }
+  saveWorldBook(entries);
+  closeWBForm();
+  renderWBList();
+  showToast(idx >= 0 ? '條目已更新 ✦' : '條目已新增 ✦', 'success');
+}
+
+function deleteWBEntry(idx) {
+  if (!confirm('確定刪除這個世界書條目？')) return;
+  const entries = getWorldBook();
+  entries.splice(idx, 1);
+  saveWorldBook(entries);
+  renderWBList();
+}
+
+function toggleWBEntry(idx) {
+  const entries = getWorldBook();
+  entries[idx].enabled = !entries[idx].enabled;
+  saveWorldBook(entries);
+  renderWBList();
+}
+
+function renderWBList() {
+  const list = document.getElementById('wb-list');
+  const entries = getWorldBook();
+  if (!entries.length) {
+    list.innerHTML = '<div style="text-align:center;color:rgba(195,150,235,0.38);font-size:11px;padding:22px 0">尚無條目<br><span style="font-size:10px">點上方「＋ 新增條目」建立第一個</span></div>';
+    return;
+  }
+  list.innerHTML = entries.map((e, i) => `
+    <div class="wb-entry">
+      <div class="wb-entry-info" onclick="openWBForm(${i})">
+        <div class="wb-entry-name">${DOMPurify.sanitize(e.name)}</div>
+        <div class="wb-entry-trigger">觸發：${DOMPurify.sanitize(e.trigger.slice(0,28))}${e.trigger.length>28?'…':''}</div>
+      </div>
+      <div class="wb-entry-actions">
+        <button class="wb-toggle ${e.enabled?'on':''}" onclick="toggleWBEntry(${i})" title="${e.enabled?'停用':'啟用'}"></button>
+        <button class="wb-del-btn" onclick="deleteWBEntry(${i})" title="刪除">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function checkWorldBookTriggers(historyArr) {
+  const entries = getWorldBook().filter(e => e.enabled);
+  if (!entries.length) return '';
+  const injected = [];
+  for (const entry of entries) {
+    if (Math.random() * 100 >= entry.probability) continue;
+    const depth = Math.min(entry.depth || 10, historyArr.length);
+    const recent = historyArr.slice(-depth);
+    const region = entry.region != null ? entry.region : 3;
+    let matched = false;
+    for (const msg of recent) {
+      if (msg.role === 'user' && !(region & 2)) continue;
+      if (msg.role === 'model' && !(region & 1)) continue;
+      const text = (msg.parts || []).map(p => p.text || '').join(' ');
+      try {
+        if (entry.triggerType === 'regex') {
+          if (new RegExp(entry.trigger, 'i').test(text)) { matched = true; break; }
+        } else {
+          if (text.includes(entry.trigger)) { matched = true; break; }
+        }
+      } catch {}
+    }
+    if (matched) injected.push(entry.content);
+  }
+  return injected.length ? '\n\n[世界書注入]\n' + injected.join('\n---\n') + '\n[/世界書注入]' : '';
+}
+
+// ============================================================
+// 記憶系統（短期 / 長期）
+// ============================================================
+const STM_KEY = 'lex_stm';
+const LTM_KEY = 'lex_ltm';
+
+function getSTMs() { try { return JSON.parse(localStorage.getItem(STM_KEY)) || []; } catch { return []; } }
+function saveSTMs(arr) { localStorage.setItem(STM_KEY, JSON.stringify(arr)); }
+function getLTMs() { try { return JSON.parse(localStorage.getItem(LTM_KEY)) || []; } catch { return []; } }
+function saveLTMs(arr) { localStorage.setItem(LTM_KEY, JSON.stringify(arr)); }
+
+function getMemoryContext() {
+  const stms = getSTMs();
+  const ltms = getLTMs();
+  if (!stms.length && !ltms.length) return '';
+  let ctx = '\n\n[記憶系統]\n';
+  if (ltms.length) ctx += '## 長期記憶\n' + ltms.map(l => l.summary).join('\n') + '\n\n';
+  if (stms.length) ctx += '## 短期記憶\n' + stms.map((s, i) => `${i+1}. ${s.summary}`).join('\n');
+  return ctx + '\n[/記憶系統]';
+}
+
+function createSTMYaml(userMsg, aiReply) {
+  const now = new Date();
+  const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const userSnip = userMsg.replace(/\[NOTION_CONTEXT\][\s\S]*?\[\/NOTION_CONTEXT\]/g,'').trim().slice(0,80).replace(/\n/g,' ');
+  const aiSnip = aiReply.trim().slice(0,100).replace(/\n/g,' ');
+  return `timestamp: ${ts}\nuser: "${userSnip}${userMsg.length>80?'…':''}"\nai: "${aiSnip}${aiReply.length>100?'…':''}"`;
+}
+
+async function addShortTermMemory(userMsg, aiReply) {
+  const yaml = createSTMYaml(userMsg, aiReply);
+  const stms = getSTMs();
+  stms.push({ summary: yaml, ts: Date.now() });
+  if (stms.length >= 10) {
+    await consolidateMemories(stms);
+  } else {
+    saveSTMs(stms);
+  }
+  return yaml;
+}
+
+async function consolidateMemories(stms) {
+  const cfg = getConfig();
+  if (!cfg.geminiKey) { saveSTMs(stms); return; }
+  try {
+    const summaryPrompt = `請將以下10條對話短期記憶整合成一段100字以內的長期記憶摘要，用繁體中文描述主要話題和重要資訊：\n${stms.map((s,i)=>`${i+1}. ${s.summary}`).join('\n')}`;
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${cfg.geminiKey}`,
+      { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ contents:[{role:'user',parts:[{text:summaryPrompt}]}], generationConfig:{maxOutputTokens:250} }) }
+    );
+    const data = await res.json();
+    const summary = data.candidates?.[0]?.content?.parts?.[0]?.text || stms.map(s=>s.summary).join(' | ');
+    const ltms = getLTMs();
+    ltms.push({ summary, ts: Date.now() });
+    saveLTMs(ltms);
+    saveSTMs([]);
+    showToast('✦ 記憶已整合為長期記憶', 'success');
+  } catch {
+    saveSTMs(stms);
+  }
 }
 
 // ============================================================
