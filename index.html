@@ -960,6 +960,68 @@
   border-radius:7px; font-size:10px; color:rgba(195,165,230,0.6);
   font-family:'Courier New',monospace; white-space:pre-wrap; line-height:1.5;
 }
+
+/* ===== 風月音樂播放器 ===== */
+#bgm-player {
+  position: fixed;
+  bottom: 22px;
+  left: 22px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(9,5,24,0.82);
+  border: 1px solid rgba(199,125,255,0.28);
+  border-radius: 40px;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.45), 0 0 18px rgba(199,125,255,0.08);
+  transition: opacity .3s, transform .3s;
+  user-select: none;
+}
+#bgm-player:hover { opacity: 1 !important; }
+#bgm-player.collapsed { opacity: 0.35; transform: scale(0.93); }
+
+.bgm-prev, .bgm-next {
+  background: none; border: none; cursor: pointer;
+  color: rgba(199,125,255,0.65); font-size: 13px; padding: 2px 4px;
+  transition: color .2s;
+}
+.bgm-prev:hover, .bgm-next:hover { color: #c77dff; }
+
+#bgm-play-btn {
+  width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #c77dff, #ff6b9d);
+  color: white; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 10px rgba(199,125,255,0.4);
+  transition: transform .15s, box-shadow .2s;
+  flex-shrink: 0;
+}
+#bgm-play-btn:hover { transform: scale(1.1); box-shadow: 0 0 18px rgba(199,125,255,0.65); }
+
+#bgm-track-info {
+  display: flex; flex-direction: column; gap: 1px; min-width: 80px; max-width: 120px;
+}
+#bgm-track-name {
+  font-size: 10px; font-weight: 600; color: rgba(218,175,255,0.9);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#bgm-progress-wrap {
+  height: 3px; background: rgba(199,125,255,0.15); border-radius: 2px; overflow: hidden; cursor: pointer;
+}
+#bgm-progress-bar {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #c77dff, #ff6b9d);
+  border-radius: 2px; transition: width .8s linear;
+}
+
+#bgm-vol-btn {
+  background: none; border: none; cursor: pointer;
+  color: rgba(199,125,255,0.55); font-size: 13px; padding: 2px;
+  transition: color .2s;
+}
+#bgm-vol-btn:hover { color: #c77dff; }
 </style>
 </head>
 <body>
@@ -979,6 +1041,19 @@
 <span class="sparkle" style="top:80%;left:88%;--dur:3.8s;--delay:0.5s">✧</span>
 <span class="sparkle" style="top:45%;left:52%;--dur:4.2s;--delay:1.5s">✦</span>
 <span class="sparkle" style="top:8%;left:42%;--dur:6s;--delay:0.8s">✧</span>
+
+<!-- 風月 BGM 播放器 -->
+<div id="bgm-player" class="collapsed">
+  <button class="bgm-prev" id="bgm-prev" title="上一首">&#9664;</button>
+  <button id="bgm-play-btn" title="播放／暫停">▶</button>
+  <button class="bgm-next" id="bgm-next" title="下一首">&#9654;</button>
+  <div id="bgm-track-info">
+    <div id="bgm-track-name">BGM 1</div>
+    <div id="bgm-progress-wrap"><div id="bgm-progress-bar"></div></div>
+  </div>
+  <button id="bgm-vol-btn" title="靜音切換">🔊</button>
+</div>
+<audio id="bgm-audio" loop preload="auto"></audio>
 
 <!-- 設定面板（首次使用） -->
 <div id="settings-overlay" class="hidden">
@@ -2505,6 +2580,79 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+</script>
+
+<script>
+/* ===== 風月 BGM 播放器 ===== */
+(function(){
+  const tracks = [
+    { src: './bgm1.mp3', name: '風月 I' },
+    { src: './bgm2.mp3', name: '風月 II' }
+  ];
+  let cur = 0, playing = false, muted = false;
+
+  const audio    = document.getElementById('bgm-audio');
+  const playBtn  = document.getElementById('bgm-play-btn');
+  const prevBtn  = document.getElementById('bgm-prev');
+  const nextBtn  = document.getElementById('bgm-next');
+  const volBtn   = document.getElementById('bgm-vol-btn');
+  const bar      = document.getElementById('bgm-progress-bar');
+  const nameEl   = document.getElementById('bgm-track-name');
+  const player   = document.getElementById('bgm-player');
+
+  function loadTrack(idx) {
+    cur = (idx + tracks.length) % tracks.length;
+    audio.src = tracks[cur].src;
+    nameEl.textContent = tracks[cur].name;
+    bar.style.width = '0%';
+    if (playing) audio.play().catch(()=>{});
+  }
+
+  function togglePlay() {
+    if (!audio.src || audio.src === window.location.href) loadTrack(cur);
+    if (playing) {
+      audio.pause();
+      playing = false;
+      playBtn.textContent = '▶';
+      player.classList.add('collapsed');
+    } else {
+      audio.play().then(()=>{
+        playing = true;
+        playBtn.textContent = '⏸';
+        player.classList.remove('collapsed');
+      }).catch(()=>{});
+    }
+  }
+
+  audio.addEventListener('timeupdate', () => {
+    if (audio.duration) bar.style.width = (audio.currentTime / audio.duration * 100) + '%';
+  });
+
+  audio.addEventListener('ended', () => {
+    loadTrack(cur + 1);
+    audio.play().catch(()=>{});
+  });
+
+  playBtn.addEventListener('click', togglePlay);
+  prevBtn.addEventListener('click', () => { loadTrack(cur - 1); });
+  nextBtn.addEventListener('click', () => { loadTrack(cur + 1); });
+
+  volBtn.addEventListener('click', () => {
+    muted = !muted;
+    audio.muted = muted;
+    volBtn.textContent = muted ? '🔇' : '🔊';
+  });
+
+  document.getElementById('bgm-progress-wrap').addEventListener('click', e => {
+    if (!audio.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    audio.currentTime = (e.clientX - rect.left) / rect.width * audio.duration;
+  });
+
+  // 預載第一首，等用戶互動後才播
+  loadTrack(0);
+  audio.volume = 0.55;
+})();
 </script>
 </body>
 </html>
