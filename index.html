@@ -778,14 +778,22 @@
 
 /* ===== 風月美學覆蓋 ===== */
 #bg {
-  background-image: none !important;
-  background:
-    radial-gradient(ellipse at 20% 50%, rgba(120,40,80,0.3) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(80,40,140,0.25) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 90%, rgba(20,60,90,0.25) 0%, transparent 60%),
-    linear-gradient(135deg, #06040f 0%, #0e0620 50%, #06040f 100%) !important;
+  background-image: url('./dungeon_wallpaper.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
 }
-#bg::after { display: none; }
+#bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(120,40,80,0.28) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(80,40,140,0.22) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 90%, rgba(20,60,90,0.22) 0%, transparent 60%),
+    rgba(4,2,10,0.62);
+  pointer-events: none;
+}
 
 /* 浮動光球 */
 .orb {
